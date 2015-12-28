@@ -14,7 +14,8 @@ def main():
   inputs = ProcessCommandLineInputs()
 
   print "Accessing Arlo webpage.."
-  result = DownloadAllTodaysVideo(inputs.account, inputs.password, inputs.verbose)
+  #result = DownloadAllTodaysVideo(inputs.account, inputs.password, inputs.verbose)
+  result = True
 
   if result:
     print "Processing Video.."
@@ -175,11 +176,23 @@ def MoveFilesToUploadFolder(downloadPath, uploadPath):
   for root, dirs, filenames in os.walk(expandedDownloadPath):
     filenames.sort()
     for filename in filenames:
-      if filename.endswith(".mp4"):
-        # os.rename(dirs)
+      if IsArloVideo(filename):
         src = "%s/%s" % (expandedDownloadPath, filename)
         dst = "%s/%s" % (expandedUploadPath, filename)
         os.rename(src, dst)
+def IsArloVideo(filename):
+  # This is not perfect solution.
+  if not filename.endswith(".mp4"):
+    return False
+
+  filenameOnly = filename[:-4]
+  if len(filenameOnly) != 13: # 13 Digit Epoch
+    return False
+
+  # Number only.
+  if "%d" % int(filenameOnly) != filenameOnly:
+    return False
+  return True
 
 if __name__ == "__main__":
   import sys, os

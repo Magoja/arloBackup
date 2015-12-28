@@ -2,7 +2,7 @@
 
 ## What it does
 
-This script is a helper script to download Arlo videos. There are still some problems, but I think it is acceptable to use.
+This script is a helper script to download Arlo videos. There are still some problems, but I think it is acceptable to use. Installing Selenium and Chromedriver might pull some of your hair off.
 
 ### Problems
 * Splinter is using forground Web browser access: Which means, it might not work if you are manipulating your machine when this script is running.
