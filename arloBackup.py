@@ -3,19 +3,28 @@
 import argparse
 import os
 import time
+import datetime
 
 cVersion = "0.1a"
+cWaitingTimeForLogin = 5 # seconds
+cWaitingTimeForDownloadingToComplete = 5 # seconds
 
 def main():
   ShowApplicationTitle()
   inputs = ProcessCommandLineInputs()
 
   print "Accessing Arlo webpage.."
-  DownloadAllTodaysVideo(inputs.account, inputs.password, inputs.verbose)
-  print "Processing Video.."
-  MoveFilesToUploadFolder(inputs.download_path, inputs.upload_path)
+  result = DownloadAllTodaysVideo(inputs.account, inputs.password, inputs.verbose)
+
+  if result:
+    print "Processing Video.."
+    MoveFilesToUploadFolder(inputs.download_path, inputs.upload_path)
+  else:
+    print "Download failed"
+    return 1
+
   print "Done"
-  pass
+  return 0
 
 def ShowApplicationTitle():
   print "-----------------------------------------"
@@ -49,8 +58,10 @@ def DownloadAllTodaysVideo(account, password, verbose):
   if not downloader.Login(account, password):
     print "Error) Login Failed. Please check your account."
     # This might break if they change the login system.
-    return
+    return False
   downloader.DownloadTodaysVideo()
+
+  return True
 
 class ArloVideoDownloader:
   def __init__(self, verbose):
@@ -78,7 +89,11 @@ class ArloVideoDownloader:
 
     button.click()
 
-    return self.browser.is_text_present('Library')
+    # Wait for page to load. This can take some time.
+    if self.browser.is_element_not_present_by_text('Library', wait_time = cWaitingTimeForLogin):
+      return False
+    else:
+      return True
 
   def DownloadTodaysVideo(self):
     print "Logging in.."
@@ -99,6 +114,7 @@ class ArloVideoDownloader:
     self.browser.find_by_id('day_ok').click()
 
   def IterateToDownloadAll(self):
+    self.OpenYesterdayPage()
     self.SetSelectVideoMode()
 
     previews = self.browser.find_by_css('.vlist-preview')
@@ -120,9 +136,19 @@ class ArloVideoDownloader:
 
       self.PushDownload()
 
+  def OpenYesterdayPage(self):    
+    #https://arlo.netgear.com/#/calendar/201512/all/all/20151226/day
+    yesterday = self.GetYesterday()
+    url = "https://arlo.netgear.com/#/calendar/%d%d/all/all/%d%d%d/day" % (
+      yesterday.year, yesterday.month, yesterday.year, yesterday.month, yesterday.day)
+    self.Debug("Visiting: %s" % url)
+    self.browser.visit(url)
+
   def SetSelectVideoMode(self):
-    # TODO: Select YESTERDAY.
     self.browser.find_by_id('day_ToggleSelectMode').click()
+
+  def GetYesterday(self):
+    return datetime.datetime.now() - datetime.timedelta(hours=24)
 
   def PushDownload(self):
     # TODO: Can we change the download folder?
@@ -131,10 +157,9 @@ class ArloVideoDownloader:
 
   def WaitForDownloading(self):
     # TODO: How can I know when all the downloading would be completed?
-    # Wait for one second for now.
-    time.sleep(1)
+    time.sleep(cWaitingTimeForDownloadingToComplete)
 
-  def Debug(message):
+  def Debug(self, message):
     if self.verbose:
       print message
 
@@ -157,6 +182,10 @@ def MoveFilesToUploadFolder(downloadPath, uploadPath):
         os.rename(src, dst)
 
 if __name__ == "__main__":
-  main()
+  import sys, os
+  if main():
+    sys.exit(os.EX_OK)
+  else:
+    sys.exit(os.EX_SOFTWARE)
 else:
   print "This file must be the main entry point."
