@@ -6,16 +6,15 @@ import time
 import datetime
 
 cVersion = "0.1a"
-cWaitingTimeForLogin = 5 # seconds
-cWaitingTimeForDownloadingToComplete = 5 # seconds
+cWaitingTimeForPageUpdate = 20 # seconds
+cWaitingTimeForDownloadingToComplete = 10 # seconds
 
 def main():
   ShowApplicationTitle()
   inputs = ProcessCommandLineInputs()
 
   print "Accessing Arlo webpage.."
-  #result = DownloadAllTodaysVideo(inputs.account, inputs.password, inputs.verbose)
-  result = True
+  result = DownloadAllTodaysVideo(inputs.account, inputs.password, inputs.verbose)
 
   if result:
     print "Processing Video.."
@@ -90,15 +89,16 @@ class ArloVideoDownloader:
 
     button.click()
 
+    self.WaitForPageUpdate()
     # Wait for page to load. This can take some time.
-    if self.browser.is_element_not_present_by_text('Library', wait_time = cWaitingTimeForLogin):
+    if self.browser.is_element_not_present_by_text('Library', wait_time = cWaitingTimeForPageUpdate):
       return False
     else:
       return True
 
   def DownloadTodaysVideo(self):
     print "Logging in.."
-    if not self.OpenLibraryTab():
+    if not self.OpenYesterdayPage():
       self.Debug("Err> Cannot open library tab")
       return False
 
@@ -107,15 +107,14 @@ class ArloVideoDownloader:
     self.IterateToDownloadAll()
     self.WaitForDownloading()
 
-  def OpenLibraryTab(self):
-    self.browser.find_by_id('footer_library').click()
-    return not self.browser.find_by_id('day_ToggleSelectMode').is_empty()
+  def WaitForPageUpdate(self):
+    self.Debug("Wait %d seconds.." % cWaitingTimeForPageUpdate)
+    time.sleep(cWaitingTimeForPageUpdate)    
 
   def HideRuleNotification(self):
     self.browser.find_by_id('day_ok').click()
 
   def IterateToDownloadAll(self):
-    self.OpenYesterdayPage()
     self.SetSelectVideoMode()
 
     previews = self.browser.find_by_css('.vlist-preview')
@@ -144,6 +143,9 @@ class ArloVideoDownloader:
       yesterday.year, yesterday.month, yesterday.year, yesterday.month, yesterday.day)
     self.Debug("Visiting: %s" % url)
     self.browser.visit(url)
+    self.WaitForPageUpdate()
+    
+    return not self.browser.find_by_id('day_ToggleSelectMode').is_empty()
 
   def SetSelectVideoMode(self):
     self.browser.find_by_id('day_ToggleSelectMode').click()
