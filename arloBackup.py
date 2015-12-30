@@ -6,7 +6,7 @@ import time
 import datetime
 
 cVersion = "0.1a"
-cWaitingTimeForPageUpdate = 20 # seconds
+cWaitingTimeForPageUpdate = 5 # seconds
 cWaitingTimeForDownloadingToComplete = 10 # seconds
 
 def main():
@@ -103,7 +103,6 @@ class ArloVideoDownloader:
       return False
 
     print "Downloading Video.."
-    self.HideRuleNotification()
     self.IterateToDownloadAll()
     self.WaitForDownloading()
 
@@ -111,13 +110,10 @@ class ArloVideoDownloader:
     self.Debug("Wait %d seconds.." % cWaitingTimeForPageUpdate)
     time.sleep(cWaitingTimeForPageUpdate)    
 
-  def HideRuleNotification(self):
-    self.browser.find_by_id('day_ok').click()
-
   def IterateToDownloadAll(self):
     self.SetSelectVideoMode()
 
-    previews = self.browser.find_by_css('.vlist-preview')
+    previews = self.browser.find_by_css('.timeline-record')
     
     # Go over for each video.
     # I didn't try to download all at once, because I couldn't
@@ -134,28 +130,34 @@ class ArloVideoDownloader:
       button.click()
       previousButton = button
 
+      self.WaitForPageUpdate()
       self.PushDownload()
 
   def OpenYesterdayPage(self):    
     #https://arlo.netgear.com/#/calendar/201512/all/all/20151226/day
+    # They have changed it! 2015/12/29
+    #https://arlo.netgear.com/#/calendar/201512/20151228/day
     yesterday = self.GetYesterday()
-    url = "https://arlo.netgear.com/#/calendar/%d%d/all/all/%d%d%d/day" % (
+    url = "https://arlo.netgear.com/#/calendar/%d%d/%d%d%d/day" % (
       yesterday.year, yesterday.month, yesterday.year, yesterday.month, yesterday.day)
     self.Debug("Visiting: %s" % url)
+
+    # This breaks session! What should I do?
     self.browser.visit(url)
     self.WaitForPageUpdate()
     
-    return not self.browser.find_by_id('day_ToggleSelectMode').is_empty()
+    return not self.browser.is_element_not_present_by_text('Select')
 
   def SetSelectVideoMode(self):
-    self.browser.find_by_id('day_ToggleSelectMode').click()
+    self.browser.find_by_text('Select').click()
 
   def GetYesterday(self):
     return datetime.datetime.now() - datetime.timedelta(hours=24)
 
   def PushDownload(self):
     # TODO: Can we change the download folder?
-    self.browser.find_by_id('footer_download').click()
+    buttons = self.browser.find_by_css('.download')
+    buttons[0].click()
     pass
 
   def WaitForDownloading(self):
